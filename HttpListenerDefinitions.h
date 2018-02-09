@@ -1,0 +1,5 @@
+#pragma once
+
+#define DEFAULT_THREAD_NUMBER 5
+#define DEFAULT_LISTENING_PORT 8089
+#define THREAD_NUMBER_LIMIT 50
