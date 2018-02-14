@@ -1,5 +1,9 @@
 ﻿#include "HttpListenerThread.h"
 
+/*void HttpListenerThread::~HttpListenerThread ()
+{
+}*/
+
 void HttpListenerThread::operator() (unsigned int port)
 {
     printf("Listening at %d... \n", port);

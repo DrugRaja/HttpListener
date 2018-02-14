@@ -4,6 +4,17 @@
 #include "stdafx.h"
 #include "HttpListenerThread.h"
 
+struct ThreadDeleter {
+   void operator()(std::thread* t) 
+   {
+      if(t)
+      {
+         t->join();
+         delete t;
+      }
+   }
+};
+
 int main(int argc, char* argv[])
 {
    int inputPort = 0;
@@ -34,13 +45,18 @@ int main(int argc, char* argv[])
       printf("Port parameter missing. Using default: %d\n\n", listenerPort);
    }
 
+   typedef std::unique_ptr<std::thread, ThreadDeleter> ThreadPointer;
+   std::vector<ThreadPointer> threadPool;
+
    std::thread* threads[DEFAULT_THREAD_NUMBER];
    int rc=-1;
 
    for (unsigned int i=0;i<DEFAULT_THREAD_NUMBER;i++)
    {
-      std::thread* currentThread(new std::thread(HttpListenerThread(), listenerPort));
-      threads[i] = currentThread;
+      ThreadPointer thread(new std::thread(HttpListenerThread(), listenerPort));
+      threadPool.push_back(std::move(thread));
+      /*std::thread* currentThread(new std::thread(HttpListenerThread(), listenerPort));
+      threads[i] = currentThread;*/
 
    }
    printf("created thread...\n");
