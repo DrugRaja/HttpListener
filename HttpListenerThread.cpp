@@ -1,7 +1,9 @@
 ﻿#include "HttpListenerThread.h"
+#include <mutex> 
 
 evutil_socket_t HttpListenerThread::socket=-1;
 bool HttpListenerThread::active = true;
+std::mutex mtx;
 
 void httpCallback(evhttp_request * request, void * args)
 {
@@ -30,8 +32,8 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
         return;
     }
 
-    evhttp_set_gencb(httpEvent.get(), httpCallback, nullptr);
-
+    evhttp_set_gencb(httpEvent.get(), httpEventCallback, nullptr);
+    mtx.lock();
     if(socket == -1)
     {
         boundSocket=evhttp_bind_socket_with_handle(httpEvent.get(), SERVER_IP, port);
@@ -51,7 +53,7 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
         if (evhttp_accept_socket(httpEvent.get(), socket) == -1)
         printf("Thread %d ERROR: Failed to bind socket.", threadID);
     }
-
+    mtx.unlock();
     while(active)
     {
         event_base_loop(eventBase.get(), EVLOOP_NONBLOCK);

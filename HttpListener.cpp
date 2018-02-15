@@ -51,7 +51,6 @@ int main(int argc, char* argv[])
     for (unsigned int i=0;i<DEFAULT_THREAD_NUMBER;i++)
     {
         ThreadPointer thread(new std::thread(HttpListenerThread(), listenerPort, i));
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         threadPool.push_back(std::move(thread));
     }
 
