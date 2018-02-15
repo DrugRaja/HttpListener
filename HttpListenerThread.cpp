@@ -5,15 +5,6 @@ evutil_socket_t HttpListenerThread::socket=-1;
 bool HttpListenerThread::active = true;
 std::mutex mtx;
 
-void httpCallback(evhttp_request * request, void * args)
-{
-    auto *OutBuf = evhttp_request_get_output_buffer(request);
-      if (!OutBuf)
-        return;
-      evbuffer_add_printf(OutBuf, "<html><body><center><h1>Hello World!</h1></center></body></html>");
-      evhttp_send_reply(request, HTTP_OK, "", OutBuf);
-}
-
 void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
 {
     printf("Thread %d listening on port %d... \n", threadID, port);
@@ -33,6 +24,7 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
     }
 
     evhttp_set_gencb(httpEvent.get(), httpEventCallback, nullptr);
+
     mtx.lock();
     if(socket == -1)
     {
