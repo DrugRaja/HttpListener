@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
         threadPool.push_back(std::move(thread));
     }
 
-    std::cout << "Press Enter to quit." << std::endl;
+    std::cout << "Press Enter to quit.\n" << std::endl;
     std::cin.get();
     HttpListenerThread::deactivate();
     return 0;
