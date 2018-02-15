@@ -5,7 +5,6 @@
 class HttpListenerThread
 {
 public:
-    HttpListenerThread();
     void operator() (unsigned int port, unsigned int threadID);
     void httpEventCallback(struct evhttp_request * request, void * args);
     static void deactivate();
