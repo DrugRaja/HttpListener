@@ -9,6 +9,7 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
 {
     printf("Thread %d listening on port %d... \n", threadID, port);
 
+    // Created libevent event base
     std::unique_ptr<event_base, std::function<void(event_base *)>> eventBase(event_base_new(), &event_base_free);
     if(!eventBase)
     {
@@ -16,6 +17,7 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
         return;
     }
 
+    // Create libevent HTTP request handler
     std::unique_ptr<evhttp, std::function<void(evhttp *)>> httpEvent(evhttp_new(eventBase.get()), &evhttp_free);
     if(!httpEvent)
     {
@@ -23,8 +25,12 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
         return;
     }
 
+    // Register specific URI and general HTTP callback functions.
+    evhttp_set_cb(httpEvent.get(), "/wav-info", httpWavInfoCallback, nullptr);
+    evhttp_set_cb(httpEvent.get(), "/mp3-to-wav", httpMp3ToWavCallback, nullptr);
     evhttp_set_gencb(httpEvent.get(), httpEventCallback, nullptr);
 
+    // Bind to listening socket
     mtx.lock();
     if(socket == -1)
     {
@@ -46,6 +52,8 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
         printf("Thread %d ERROR: Failed to bind socket.", threadID);
     }
     mtx.unlock();
+
+    // Check if there are HTTP requests
     while(active)
     {
         event_base_loop(eventBase.get(), EVLOOP_NONBLOCK);
@@ -54,16 +62,37 @@ void HttpListenerThread::operator() (unsigned int port, unsigned int threadID)
     printf("Thread %d EXIT OK\n", threadID);
 }
 
-void HttpListenerThread::httpEventCallback(evhttp_request * request, void * args)
-{
-    auto *OutBuf = evhttp_request_get_output_buffer(request);
-      if (!OutBuf)
-        return;
-      evbuffer_add_printf(OutBuf, "<html><body><center><h1>Hello World!</h1></center></body></html>");
-      evhttp_send_reply(request, HTTP_OK, "", OutBuf);
-}
-
 void HttpListenerThread::deactivate()
 {
     HttpListenerThread::active = false;
+}
+
+void HttpListenerThread::httpEventCallback(evhttp_request * request, void * args)
+{
+    evbuffer *outputBuffer = evhttp_request_get_output_buffer(request);
+    if (outputBuffer)
+    {
+        evbuffer_add_printf(outputBuffer, "<html><body><center><h1>Request received. Processing not available for this type of request.</h1></center></body></html>");
+        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+    }
+}
+
+void HttpListenerThread::httpWavInfoCallback(evhttp_request * request, void * args)
+{
+    evbuffer *outputBuffer = evhttp_request_get_output_buffer(request);
+    if (outputBuffer)
+    {
+        evbuffer_add_printf(outputBuffer, "<html><body><center><h1>WAV INFO</h1></center></body></html>");
+        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+    }
+}
+
+void HttpListenerThread::httpMp3ToWavCallback(evhttp_request * request, void * args)
+{
+    evbuffer *outputBuffer = evhttp_request_get_output_buffer(request);
+    if (outputBuffer)
+    {
+        evbuffer_add_printf(outputBuffer, "<html><body><center><h1>MP3 to WAV</h1></center></body></html>");
+        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+    }
 }

@@ -7,6 +7,8 @@ class HttpListenerThread
 public:
     void operator() (unsigned int port, unsigned int threadID);
     static void httpEventCallback(evhttp_request * request, void * args);
+    static void httpWavInfoCallback(evhttp_request * request, void * args);
+    static void httpMp3ToWavCallback(evhttp_request * request, void * args);
     static void deactivate();
 private:
    static bool active;
