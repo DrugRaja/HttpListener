@@ -82,7 +82,11 @@ void HttpListenerThread::httpWavInfoCallback(evhttp_request * request, void * ar
     evbuffer *outputBuffer = evhttp_request_get_output_buffer(request);
     if (outputBuffer)
     {
-        evbuffer_add_printf(outputBuffer, "<html><body><center><h1>WAV INFO</h1></center></body></html>");
+        std::string prnt = "<html><body><center><h1>";
+        prnt.append(request->uri);
+        prnt.append("</h1></center></body></html>\0");
+
+        evbuffer_add_printf(outputBuffer, prnt.c_str());
         evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
     }
 }
