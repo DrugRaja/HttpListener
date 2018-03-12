@@ -6,12 +6,17 @@ class HttpListenerThread
 {
 public:
     void operator() (unsigned int port, unsigned int threadID);
-    static void httpEventCallback(evhttp_request * request, void * args);
-    static void httpWavInfoCallback(evhttp_request * request, void * args);
-    static void httpMp3ToWavCallback(evhttp_request * request, void * args);
+    void httpEventCallback(evhttp_request * request, void * args);
+    void httpWavInfoCallback(evhttp_request * request, void * args);
+    void httpMp3ToWavCallback(evhttp_request * request, void * args);
     static void deactivate();
 private:
    static bool active;
    static evutil_socket_t socket;
    evhttp_bound_socket* boundSocket;
+
+   std::string parseKey(std::string &uri, const std::string &keyname);
+   std::string getFile(std::string bucketName, std::string keyName);
+   std::string executeCommand(const char* cmd);
+   std::string getFileName(std::string keyName);
 };
