@@ -4,3 +4,9 @@
 #define DEFAULT_LISTENING_PORT 8089
 #define THREAD_NUMBER_LIMIT 50
 #define SERVER_IP "localhost"
+
+enum resultCode
+{
+    success = 0,
+    fail
+};

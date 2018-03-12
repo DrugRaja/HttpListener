@@ -15,8 +15,9 @@ private:
    static evutil_socket_t socket;
    evhttp_bound_socket* boundSocket;
 
-   std::string parseKey(std::string &uri, const std::string &keyname);
-   std::string getFile(std::string bucketName, std::string keyName);
+   std::string parseKey(const std::string& uri, const std::string& keyname);
    std::string executeCommand(const char* cmd);
-   std::string getFileName(std::string keyName);
+   std::string getFileName(std::string& keyName);
+   int getFile(const std::string& bucketName, std::string& keyName, std::string& result);
+   int uploadFile(const std::string& bucketName, const std::string& keyName, std::string& wavFileName, std::string& result);
 };

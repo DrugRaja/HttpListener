@@ -113,28 +113,39 @@ void HttpListenerThread::httpWavInfoCallback(evhttp_request * request, void * ar
         requestUri.assign(request->uri);
 
     	std::string wavInfoKey = parseKey(requestUri, "wavkey");
-    	std::string wavFileName = getFile("uar-patrick-code-test", wavInfoKey);
+    	std::string prnt = "";
+    	std::string wavFileName = "";
+    	if(getFile("uar-patrick-code-test", wavInfoKey, wavFileName) == resultCode::success)
+    	{
+    	    std::string command = "soxi -c ";
+	    	command.append(wavFileName);
+	    	std::string channelNo = executeCommand(command.c_str());
+	    	command = "soxi -r ";
+	    	command.append(wavFileName);
+	    	std::string sampleRate = executeCommand(command.c_str());
+	    	command = "soxi -D ";
+	    	command.append(wavFileName);
+	    	std::string duration = executeCommand(command.c_str());
 
-    	std::string command = "soxi -c ";
-    	command.append(wavFileName);
-    	std::string channelNo = executeCommand(command.c_str());
-    	command = "soxi -r ";
-    	command.append(wavFileName);
-    	std::string sampleRate = executeCommand(command.c_str());
-    	command = "soxi -D ";
-    	command.append(wavFileName);
-    	std::string duration = executeCommand(command.c_str());
+	    	std::string prnt = "{channel_count: ";
+	        prnt.append(channelNo);
+	        prnt.append(", sample_rate: ");
+	        prnt.append(sampleRate);
+	        prnt.append(", execution_time: ");
+	        prnt.append(duration);
+	        prnt.append("}");
 
-        std::string prnt = "{channel_count: ";
-        prnt.append(channelNo);
-        prnt.append(", sample_rate: ");
-        prnt.append(sampleRate);
-        prnt.append(", execution_time: ");
-        prnt.append(duration);
-        prnt.append("}");
+	        evbuffer_add_printf(outputBuffer, prnt.c_str());
+            evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+    	}
+    	else
+    	{
+    	std::cout << "ddddddddd" << wavFileName << std::endl;
+    	    evbuffer_add_printf(outputBuffer, wavFileName.c_str());
+            evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+    	}
 
-        evbuffer_add_printf(outputBuffer, prnt.c_str());
-        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+        
     }
 }
 
@@ -142,43 +153,60 @@ void HttpListenerThread::httpMp3ToWavCallback(evhttp_request * request, void * a
 {
     evbuffer *outputBuffer = evhttp_request_get_output_buffer(request);
     std::string requestUri = "";
+    std::string result = "";
 
     if (outputBuffer)
     {
         requestUri.assign(request->uri);
 
     	std::string mp3KeyValue = parseKey(requestUri, "mp3key");
-    	std::string mp3FileName = getFile("uar-patrick-code-test", mp3KeyValue);
+    	std::string mp3FileName = "";
+    	if(getFile("uar-patrick-code-test", mp3KeyValue, mp3FileName) == resultCode::success)
+    	{
+    	    std::string wavKeyValue = parseKey(requestUri, "wavkey");
+	    	std::string wavFileName = getFileName(wavKeyValue);
 
-    	std::string wavKeyValue = parseKey(requestUri, "wavkey");
-    	std::string wavFileName = getFileName(wavKeyValue);
+	    	std::string command = "sox ";
+	    	command.append(mp3FileName);
+	    	command.append(" ");
+	    	command.append(wavFileName);
+	    	std::system(command.c_str());
+	    	command = "soxi -D ";
+	    	command.append(wavFileName);
+	    	std::string duration = executeCommand(command.c_str());
+	    	command = "du -k ";
+	    	command.append(wavFileName);
+	    	command.append(" | cut -f1");
+	    	std::string fileSize = executeCommand(command.c_str());
 
-    	std::string command = "sox ";
-    	command.append(mp3FileName);
-    	command.append(" ");
-    	command.append(wavFileName);
-    	std::system(command.c_str());
-    	command = "soxi -D ";
-    	command.append(wavFileName);
-    	std::string duration = executeCommand(command.c_str());
-    	command = "du -k ";
-    	command.append(wavFileName);
-    	command.append(" | cut -f1");
-    	std::string fileSize = executeCommand(command.c_str());
+	    	std::string path="./";
+	        path.append(wavFileName);
+	    	if(uploadFile("uar-patrick-code-test", wavKeyValue, path, result) == resultCode::success)
+	    	{
+	    	    std::string prnt = "{file_size: ";
+		        prnt.append(fileSize);
+		        prnt.append(", execution_time: ");
+		        prnt.append(duration);
+		        prnt.append("}");
 
-    	uploadFile(wavKeyValue, wavFileName);
-    	std::string prnt = "{file_size: ";
-        prnt.append(fileSize);
-        prnt.append(", execution_time: ");
-        prnt.append(duration);
-        prnt.append("}");
-
-        evbuffer_add_printf(outputBuffer, prnt.c_str());
-        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+		        evbuffer_add_printf(outputBuffer, prnt.c_str());
+		        evhttp_send_reply(request, HTTP_OK, "", outputBuffer);
+	    	}
+	    	else
+	    	{
+	    	    evbuffer_add_printf(outputBuffer, result.c_str());
+	            evhttp_send_reply(request, HTTP_BADREQUEST, "", outputBuffer);
+	    	}
+    	}
+    	else
+    	{
+    	    evbuffer_add_printf(outputBuffer, mp3FileName.c_str());
+	        evhttp_send_reply(request, HTTP_BADREQUEST, "", outputBuffer);
+    	}
     }
 }
 
-std::string HttpListenerThread::parseKey(std::string &uri, const std::string &keyname)
+std::string HttpListenerThread::parseKey(const std::string& uri, const std::string& keyname)
 {
     size_t keyPos = uri.find(keyname);
     size_t ampersendPos = uri.find("&");
@@ -197,7 +225,7 @@ std::string HttpListenerThread::parseKey(std::string &uri, const std::string &ke
     }
 }
 
-std::string HttpListenerThread::getFile(std::string bucketName, std::string keyName)
+int HttpListenerThread::getFile(const std::string& bucketName, std::string& keyName, std::string& result)
 {
     std::cout << "Downloading " << keyName << " from S3 bucket: " << bucketName << std::endl;
 
@@ -206,24 +234,28 @@ std::string HttpListenerThread::getFile(std::string bucketName, std::string keyN
     Aws::S3::S3Client s3Client(config);
     Aws::S3::Model::GetObjectRequest objectRequest;
     objectRequest.WithBucket(bucketName.c_str()).WithKey(keyName.c_str());
-    auto result = s3Client.GetObject(objectRequest);
+    auto getObjectResult = s3Client.GetObject(objectRequest);
     Aws::OFStream downloadFile;
 
-    if (result.IsSuccess())
+    if (getObjectResult.IsSuccess())
     {
-        std::string path="./";
-        path.append(getFileName(keyName));
-        downloadFile.open(path.c_str(), std::ios::out | std::ios::binary);
-        downloadFile << result.GetResult().GetBody().rdbuf();
+        result="./";
+        result.append(getFileName(keyName));
+        downloadFile.open(result.c_str(), std::ios::out | std::ios::binary);
+        downloadFile << getObjectResult.GetResult().GetBody().rdbuf();
         std::cout << "Done!" << std::endl;
         downloadFile.close();
-        return path;
+        return resultCode::success;
     }
     else
     {
-        std::cout << "GetObject error: " << result.GetError().GetExceptionName() << " " << result.GetError().GetMessage() << std::endl;
+        result = "getFile error: ";
+        result.append(getObjectResult.GetError().GetExceptionName().c_str());
+        result.append(" ");
+        result.append(getObjectResult.GetError().GetMessage().c_str());
+        std::cout << result << std::endl; 
+        return resultCode::fail;
     }
-    return "";
 }
 
 std::string HttpListenerThread::executeCommand(const char* cmd) {
@@ -238,7 +270,7 @@ std::string HttpListenerThread::executeCommand(const char* cmd) {
     return result;
 }
 
-std::string HttpListenerThread::getFileName(std::string keyName)
+std::string HttpListenerThread::getFileName(std::string& keyName)
 {
     size_t delimiter = keyName.find_last_of("/");
     std::string path;
@@ -253,40 +285,36 @@ std::string HttpListenerThread::getFileName(std::string keyName)
     return path;
 }
 
-bool HttpListenerThread::uploadFile(std::string wavKeyValue, std::string  wavFileName)
+int HttpListenerThread::uploadFile(const std::string& bucketName, const std::string& keyName, std::string& wavFileName, std::string& result)
 {
-    const Aws::String bucket_name = argv[1];
-        const Aws::String key_name = argv[2];
-        const Aws::String file_name = argv[3];
-        const Aws::String region(argc > 4 ? argv[4] : "");
+    std::cout << "Uploading " << getFileName(wavFileName) << " to S3 bucket " << bucketName << " at key " << keyName << std::endl;
 
-        std::cout << "Uploading " << file_name << " to S3 bucket " <<
-            bucket_name << " at key " << key_name << std::endl;
+    Aws::Client::ClientConfiguration config;
+    config.region = "us-east-2"; 
+    Aws::S3::S3Client s3Client(config);
 
-        Aws::Client::ClientConfiguration clientConfig;
-        if (!region.empty())
-            clientConfig.region = region;
-        Aws::S3::S3Client s3_client(clientConfig);
+    Aws::S3::Model::PutObjectRequest objectRequest;
+    objectRequest.WithBucket(bucketName.c_str()).WithKey(keyName.c_str());
 
-        Aws::S3::Model::PutObjectRequest object_request;
-        object_request.WithBucket(bucket_name).WithKey(key_name);
+    auto input = Aws::MakeShared<Aws::FStream>("PutObjectInputStream", wavFileName.c_str(), std::ios_base::in | std::ios_base::binary);
 
-        // Binary files must also have the std::ios_base::bin flag or'ed in
-        auto input_data = Aws::MakeShared<Aws::FStream>("PutObjectInputStream",
-            file_name.c_str(), std::ios_base::in | std::ios_base::binary);
+    objectRequest.SetBody(input);
 
-        object_request.SetBody(input_data);
+    auto putObjectResult = s3Client.PutObject(objectRequest);
 
-        auto put_object_outcome = s3_client.PutObject(object_request);
-
-        if (put_object_outcome.IsSuccess())
-        {
-            std::cout << "Done!" << std::endl;
-        }
-        else
-        {
-            std::cout << "PutObject error: " <<
-                put_object_outcome.GetError().GetExceptionName() << " " <<
-                put_object_outcome.GetError().GetMessage() << std::endl;
-}
+    if (putObjectResult.IsSuccess())
+    {
+        std::cout << "Done!" << std::endl;
+        return resultCode::success;
+    }
+    else
+    {
+        result = "getFile error: ";
+        result.append(putObjectResult.GetError().GetExceptionName().c_str());
+        result.append(" ");
+        result.append(putObjectResult.GetError().GetMessage().c_str());
+        std::cout << result << std::endl;  
+        return resultCode::fail;
+    }    
+    return false;
 }
